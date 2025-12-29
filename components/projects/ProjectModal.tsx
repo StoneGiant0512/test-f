@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Project, ProjectFormData } from '@/types/project';
-import { Input, Button } from '@/components/common';
+import { Input, Button } from '@/components/shared';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -87,9 +87,22 @@ export default function ProjectModal({ isOpen, onClose, onSave, project }: Proje
 
   if (!isOpen) return null;
 
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Only close if clicking directly on the overlay, not on the modal content
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-20 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50 p-4"
+      onClick={handleOverlayClick}
+    >
+      <div 
+        className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-4 sm:p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
