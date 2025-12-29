@@ -1,10 +1,9 @@
 import axios from 'axios';
-import { Project, ProjectFormData, ApiResponse } from '@/types/project';
+import { Project, ProjectFormData, ApiResponse, PaginatedResponse, ProjectCounts } from '@/types/project';
 import { AuthResponse, LoginFormData, RegisterFormData, User } from '@/types/auth';
 import { authStorage } from './auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
-console.log(API_BASE_URL, 'API_BASE_URL');
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -62,14 +61,41 @@ export const authApi = {
 
 // Project API
 export const projectApi = {
-  // Get all projects with optional filters
-  getAll: async (status?: string, search?: string): Promise<Project[]> => {
-    const params: { status?: string; search?: string } = {};
+  // Get all projects with optional filters, pagination, and sorting
+  getAll: async (
+    status?: string,
+    search?: string,
+    page: number = 1,
+    limit: number = 10,
+    sortField?: string,
+    sortDirection: 'asc' | 'desc' = 'asc'
+  ): Promise<{ data: Project[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {
+    const params: { 
+      status?: string; 
+      search?: string; 
+      page?: number; 
+      limit?: number;
+      sortField?: string;
+      sortDirection?: 'asc' | 'desc';
+    } = {};
     if (status && status !== 'all') params.status = status;
     if (search) params.search = search;
+    params.page = page;
+    params.limit = limit;
+    if (sortField) params.sortField = sortField;
+    params.sortDirection = sortDirection;
 
-    const response = await api.get<ApiResponse<Project[]>>('/projects', { params });
-    return response.data.data || [];
+    const response = await api.get<PaginatedResponse<Project[]>>('/projects', { params });
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination,
+    };
+  },
+
+  // Get project counts by status (for status badges)
+  getCounts: async (): Promise<ProjectCounts> => {
+    const response = await api.get<ApiResponse<ProjectCounts>>('/projects/counts');
+    return response.data.data || { all: 0, active: 0, 'on hold': 0, completed: 0 };
   },
 
   // Get single project by ID

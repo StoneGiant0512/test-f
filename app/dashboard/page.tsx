@@ -9,24 +9,27 @@ import { User } from '@/types/auth';
 import { ProjectTable, ProjectModal, StatusFilter, SearchBar } from '@/components/projects';
 import { Header } from '@/components/layout';
 import { Pagination } from '@/components/shared';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function Dashboard() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [allProjects, setAllProjects] = useState<Project[]>([]); // For accurate counts
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 500); // Debounce search with 500ms delay
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [sortField, setSortField] = useState<keyof Project | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [projectCounts, setProjectCounts] = useState({ all: 0, active: 0, 'on hold': 0, completed: 0 });
 
   // Check authentication on mount
   useEffect(() => {
@@ -52,94 +55,61 @@ export default function Dashboard() {
     checkAuth();
   }, [router]);
 
-  // Fetch all projects for accurate counts (without filters)
-  const fetchAllProjects = useCallback(async () => {
+  // Fetch project counts by status (for status badges)
+  const fetchProjectCounts = useCallback(async () => {
     try {
-      const data = await projectApi.getAll();
-      setAllProjects(data);
+      const counts = await projectApi.getCounts();
+      setProjectCounts(counts);
     } catch (err) {
-      console.error('Error fetching all projects:', err);
+      console.error('Error fetching project counts:', err);
     }
   }, []);
 
-  // Fetch projects from API with filters
+  // Fetch projects from API with filters, pagination, and sorting
   const fetchProjects = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await projectApi.getAll(selectedStatus !== 'all' ? selectedStatus : undefined, searchTerm || undefined);
-      setProjects(data);
-      setFilteredProjects(data);
+      const result = await projectApi.getAll(
+        selectedStatus !== 'all' ? selectedStatus : undefined,
+        debouncedSearchTerm || undefined, // Use debounced search term
+        currentPage,
+        itemsPerPage,
+        sortField || undefined,
+        sortDirection
+      );
+      setProjects(result.data);
+      setTotalItems(result.pagination.total);
+      setTotalPages(result.pagination.totalPages);
     } catch (err) {
       console.error('Error fetching projects:', err);
       setError('Failed to load projects. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [selectedStatus, searchTerm]);
+  }, [selectedStatus, debouncedSearchTerm, currentPage, itemsPerPage, sortField, sortDirection]);
 
-  // Sort projects
-  const sortProjects = useCallback((projects: Project[]): Project[] => {
-    if (!sortField) return projects;
+  // Sorting is now handled server-side - no client-side sorting needed
 
-    return [...projects].sort((a, b) => {
-      let aValue: any = a[sortField];
-      let bValue: any = b[sortField];
-
-      // Handle different data types
-      if (sortField === 'deadline') {
-        aValue = new Date(aValue).getTime();
-        bValue = new Date(bValue).getTime();
-      } else if (sortField === 'budget') {
-        aValue = Number(aValue);
-        bValue = Number(bValue);
-      } else if (typeof aValue === 'string') {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
-      }
-
-      // Handle null/undefined values
-      if (aValue == null && bValue == null) return 0;
-      if (aValue == null) return 1;
-      if (bValue == null) return -1;
-
-      // Compare values
-      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [sortField, sortDirection]);
-
-  // Apply sorting to filtered projects
+  // Fetch project counts on mount
   useEffect(() => {
-    const sorted = sortProjects(projects);
-    setFilteredProjects(sorted);
-    // Reset to first page when filtered/sorted results change
-    setCurrentPage(1);
-  }, [projects, sortProjects]);
+    fetchProjectCounts();
+  }, [fetchProjectCounts]);
 
-  // Fetch all projects on mount for counts
-  useEffect(() => {
-    fetchAllProjects();
-  }, [fetchAllProjects]);
-
+  // Fetch projects when filters, search, page, or items per page changes
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
 
-  // Calculate project counts by status from all projects (for accurate counts)
-  const projectCounts = {
-    all: allProjects.length,
-    active: allProjects.filter((p: Project) => p.status === 'active').length,
-    'on hold': allProjects.filter((p: Project) => p.status === 'on hold').length,
-    completed: allProjects.filter((p: Project) => p.status === 'completed').length,
-  };
+  // Reset to first page when filters or debounced search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedStatus, debouncedSearchTerm]);
 
-  // Calculate paginated projects
-  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedProjects = filteredProjects.slice(startIndex, endIndex);
+  // Reset to first page when sorting changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortField, sortDirection]);
 
   // Reset to first page when items per page changes
   useEffect(() => {
@@ -163,8 +133,8 @@ export default function Dashboard() {
 
     try {
       await projectApi.delete(id);
-      fetchAllProjects(); // Refresh counts
-      fetchProjects();
+      fetchProjectCounts(); // Refresh counts
+      fetchProjects(); // Refresh projects list
     } catch (err) {
       console.error('Error deleting project:', err);
       alert('Failed to delete project. Please try again.');
@@ -180,8 +150,8 @@ export default function Dashboard() {
       }
       setIsModalOpen(false);
       setEditingProject(null);
-      fetchAllProjects(); // Refresh counts
-      fetchProjects();
+      fetchProjectCounts(); // Refresh counts
+      fetchProjects(); // Refresh projects list
     } catch (err) {
       console.error('Error saving project:', err);
       throw err;
@@ -246,7 +216,7 @@ export default function Dashboard() {
         {/* Projects Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
           <ProjectTable
-            projects={paginatedProjects}
+            projects={projects}
             onEdit={handleEditProject}
             onDelete={handleDeleteProject}
             isLoading={isLoading}
@@ -263,12 +233,12 @@ export default function Dashboard() {
           />
 
           {/* Pagination */}
-          {!isLoading && filteredProjects.length > 0 && (
+          {!isLoading && projects.length > 0 && (
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
               itemsPerPage={itemsPerPage}
-              totalItems={filteredProjects.length}
+              totalItems={totalItems}
               onPageChange={setCurrentPage}
               onItemsPerPageChange={setItemsPerPage}
             />
