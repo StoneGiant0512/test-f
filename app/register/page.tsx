@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { authApi } from '@/lib/api';
 import { authStorage } from '@/lib/auth';
 import { RegisterFormData } from '@/types/auth';
+import Input from '@/components/shared/Input';
+import Button from '@/components/shared/Button';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -26,7 +28,6 @@ export default function RegisterPage() {
       const response = await authApi.register(formData);
       if (response.success && response.data.token) {
         authStorage.setToken(response.data.token);
-        // Redirect to dashboard
         router.push('/dashboard');
       }
     } catch (error: any) {
@@ -39,117 +40,104 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
-              sign in to existing account
-            </Link>
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                Full Name
-              </label>
-              <input
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full">
+        <div className="bg-white rounded-2xl shadow-xl p-8 sm:p-10 space-y-8 border border-gray-100">
+          {/* Header */}
+          <div className="text-center space-y-2">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+              </div>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900">
+              Create Your Account
+            </h2>
+            <p className="text-gray-600">
+              Join us and start managing your projects
+            </p>
+          </div>
+
+          {/* Form */}
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div className="space-y-5">
+              <Input
                 id="name"
-                name="name"
+                label="Full Name"
                 type="text"
                 autoComplete="name"
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 disabled={isLoading}
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                 placeholder="John Doe"
+                error={errors.name}
               />
-            </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email address
-              </label>
-              <input
+              
+              <Input
                 id="email"
-                name="email"
+                label="Email Address"
                 type="email"
                 autoComplete="email"
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 disabled={isLoading}
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                placeholder="email@example.com"
+                placeholder="you@example.com"
+                error={errors.email}
               />
-            </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <input
+              
+              <Input
                 id="password"
-                name="password"
+                label="Password"
                 type="password"
                 autoComplete="new-password"
                 required
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 disabled={isLoading}
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                placeholder="Password (min. 6 characters)"
+                placeholder="Minimum 6 characters"
                 minLength={6}
+                error={errors.password}
+                helperText="Password must be at least 6 characters long"
               />
             </div>
-          </div>
 
-          {errors.submit && (
-            <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-md">
-              {errors.submit}
-            </div>
-          )}
+            {errors.submit && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start">
+                <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span>{errors.submit}</span>
+              </div>
+            )}
 
-          <div>
-            <button
+            <Button
               type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center items-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              variant="primary"
+              size="lg"
+              isLoading={isLoading}
+              className="w-full"
             >
-              {isLoading ? (
-                <>
-                  <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Creating account...
-                </>
-              ) : (
-                'Create account'
-              )}
-            </button>
+              {isLoading ? 'Creating account...' : 'Create Account'}
+            </Button>
+          </form>
+
+          {/* Footer */}
+          <div className="text-center pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              Already have an account?{' '}
+              <Link 
+                href="/login" 
+                className="font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+              >
+                Sign in here
+              </Link>
+            </p>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
